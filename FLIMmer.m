@@ -427,6 +427,8 @@ function ardCalling(~, ~)
                     handles.button.progPot.Tag = 'off';
                     handles.button.setPot.BackgroundColor = [0.4 0 0];
                     handles.button.progPot.BackgroundColor = [0.4 0 0];
+                    handles.text.HVset.BackgroundColor = [0.4 0 0];
+                    handles.text.HVset.ForegroundColor = [1 1 1];
                     handles.text.HVset.String = '???';
                 case 1
                     handles.text.HV.String = 'HV Power ON';
@@ -437,6 +439,8 @@ function ardCalling(~, ~)
                     handles.button.progPot.Tag = 'on';
                     handles.button.setPot.BackgroundColor = [0 0.4 0];
                     handles.button.progPot.BackgroundColor = [0 0.4 0];
+                    handles.text.HVset.BackgroundColor = [1 1 0];
+                    handles.text.HVset.ForegroundColor = [0 0 0];
                     handles.text.HVset.String = ...
                         num2str(setting.Arduino.NVwiper);
                     
