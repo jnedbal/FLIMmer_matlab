@@ -37,8 +37,7 @@ set(jbh, 'ComponentMovedCallback', {@figMove});
 if isfield(setting.fig, 'pos')
     % Check that the figure is not outside of the screen
     sPos = get(0, 'ScreenSize');
-    if all(setting.fig.pos([1, 2]) + setting.fig.pos([3, 4]) <= ...
-           sPos([3, 4]))
+    if all(setting.fig.pos([1, 2]) + setting.fig.pos([3, 4]) <= sPos([3, 4])) && all(setting.fig.pos([1, 2]) >= 0)
        % Set the figure position to whereever it was last time
        handles.fig.Position = setting.fig.pos;
     end
@@ -301,6 +300,8 @@ function connectButton(~, ~)
             % Change the button string
             handles.button.connect.String = 'Connected';
             handles.button.connect.BackgroundColor = [0 0.4 0];
+            % Enable the shutter button functionality
+            handles.button.shutter.Tag = 'on';
         case 'Connected'
             % Close the serial port
             fclose(setting.serial);
@@ -332,7 +333,10 @@ function shutdown(~, ~)
     global setting
     global handles
 
-    fclose(setting.serial);
+    % Close a port, if there is any port.
+    if isfield(setting, 'serial')
+        fclose(setting.serial);
+    end
     delete(handles.fig);
 end
 
@@ -420,7 +424,6 @@ function ardCalling(~, ~)
                     handles.slider.HV.Enable = 'off';
                     handles.edit.HV.Enable = 'off';
                     handles.button.setPot.Tag = 'off';
-                    handles.button.shutter.Tag = 'off';
                     handles.button.progPot.Tag = 'off';
                     handles.button.setPot.BackgroundColor = [0.4 0 0];
                     handles.button.progPot.BackgroundColor = [0.4 0 0];
@@ -431,7 +434,6 @@ function ardCalling(~, ~)
                     handles.slider.HV.Enable = 'on';
                     handles.edit.HV.Enable = 'on';
                     handles.button.setPot.Tag = 'on';
-                    handles.button.shutter.Tag = 'on';
                     handles.button.progPot.Tag = 'on';
                     handles.button.setPot.BackgroundColor = [0 0.4 0];
                     handles.button.progPot.BackgroundColor = [0 0.4 0];
