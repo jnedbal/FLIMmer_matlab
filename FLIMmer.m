@@ -10,6 +10,21 @@ else
     setting.Arduino.pot = 0;
 end
 
+%% Check if the Digital Potentiometer calibration file exists
+if exist('HVpwrSupply.mat', 'file') == 2
+    setting.calibration.Panode = load('HVpwrSupply.mat', 'Panode');
+    setting.calibration.Pcath = load('HVpwrSupply.mat', 'Pcath');
+    setting.calibration.Pmcp = load('HVpwrSupply.mat', 'Pmcp');
+    setting.calibration.potThresh = load('HVpwrSupply.mat', 'potThresh');
+    setting.calibration.voltThresh = load('HVpwrSupply.mat', 'voltThresh');
+else
+    setting.calibration.Panode = NaN;
+    setting.calibration.Pcath = NaN;
+    setting.calibration.Pmcp = NaN;
+    setting.calibration.potThresh = NaN;
+    setting.calibration.voltThresh = NaN;
+end
+
 %% Create a figure
 setting.fig.unitH = 20;
 setting.fig.unitW = 180;
@@ -46,7 +61,7 @@ end
     
 % Set the figure size to match its content
 handles.fig.Position(3) = setting.fig.unitW;
-handles.fig.Position(4) = 11 * setting.fig.unitH;
+handles.fig.Position(4) = 15 * setting.fig.unitH;
 
 setting.fig.pos = handles.fig.Position;
 
@@ -150,10 +165,54 @@ handles.text.HVset = uicontrol('Style', 'text', ...
                                         'HorizontalAlignment', 'center', ...
                                         'BackgroundColor', [0.4 0 0], ...
                                         'ForegroundColor', [1 1 1]);
-% Set the fontsize to 200 % of the usual
-handles.text.HVset.FontSize = 2 * handles.text.HVset.FontSize;
+% Set the fontsize to 150 % of the usual
+handles.text.HVset.FontSize = 1.5 * handles.text.HVset.FontSize;
 
-%% Create a pushbutton for the shutter button
+%% Create a box for MCP voltage
+pos(2) = pos(2) - setting.fig.unitH * 1.5;
+handles.text.MCP = uicontrol('Style', 'text', ...
+                                      'String', '??? V', ...
+                                      'Position', pos .* [1 1 1 1.5], ...
+                                      'HorizontalAlignment', 'center', ...
+                                      'BackgroundColor', [0.4 0 0], ...
+                                      'ForegroundColor', [1 1 1]);
+% Set the fontsize to 200 % of the usual
+handles.text.MCP.FontSize = 1.5 * handles.text.MCP.FontSize;
+
+%% Create a box for cathode voltage
+pos(2) = pos(2) - 0.6 * setting.fig.unitH;
+handles.text.cath = uicontrol('Style', 'text', ...
+                                       'String', 'CATH: ??? V', ...
+                                       'Position', pos .* [1 1 1 0.6], ...
+                                       'HorizontalAlignment', 'center', ...
+                                       'BackgroundColor', [0.4 0 0], ...
+                                       'ForegroundColor', [1 1 1]);
+% Set the fontsize to 75 % of the usual
+handles.text.cath.FontSize = 0.75 * handles.text.cath.FontSize;
+
+%% Create a box for MCPout voltage
+pos(2) = pos(2) - 0.6 * setting.fig.unitH;
+handles.text.mcpout = uicontrol('Style', 'text', ...
+                                      'String', 'MCPOUT: ??? V', ...
+                                      'Position', pos .* [1 1 1 0.6], ...
+                                      'HorizontalAlignment', 'center', ...
+                                      'BackgroundColor', [0.4 0 0], ...
+                                      'ForegroundColor', [1 1 1]);
+% Set the fontsize to 75 % of the usual
+handles.text.mcpout.FontSize = 0.75 * handles.text.mcpout.FontSize;
+
+%% Create a box for Anode voltage
+pos(2) = pos(2) - 0.6 * setting.fig.unitH;
+handles.text.anode = uicontrol('Style', 'text', ...
+                                     'String', 'ANODE: ??? V', ...
+                                     'Position', pos .* [1 1 1 0.6], ...
+                                     'HorizontalAlignment', 'center', ...
+                                     'BackgroundColor', [0.4 0 0], ...
+                                     'ForegroundColor', [1 1 1]);
+% Set the fontsize to 75 % of the usual
+handles.text.anode.FontSize = 0.75 * handles.text.anode.FontSize;
+
+%% Create a pushbutton for the program default value button
 pos(2) = pos(2) - setting.fig.unitH;
 handles.button.progPot = uicontrol('Style', 'pushbutton', ...
                                             'String', 'Program Voltage', ...
@@ -321,6 +380,18 @@ function connectButton(~, ~)
             handles.text.HVset.String = '???';
             handles.text.HVset.BackgroundColor = [0.4 0 0];
             handles.text.HVset.ForegroundColor = [1 1 1];
+            handles.text.MCP.String = '???';
+            handles.text.MCP.BackgroundColor = [0.4 0 0];
+            handles.text.MCP.ForegroundColor = [1 1 1];
+            handles.text.cath.String = '???';
+            handles.text.cath.BackgroundColor = [0.4 0 0];
+            handles.text.cath.ForegroundColor = [1 1 1];
+            handles.text.mcpout.String = '???';
+            handles.text.mcpout.BackgroundColor = [0.4 0 0];
+            handles.text.mcpout.ForegroundColor = [1 1 1];
+            handles.text.anode.String = '???';
+            handles.text.anode.BackgroundColor = [0.4 0 0];
+            handles.text.anode.ForegroundColor = [1 1 1];
             handles.button.setPot.Tag = 'off';
             handles.button.progPot.Tag = 'off';
             handles.button.setPot.BackgroundColor = [0.4 0 0];
@@ -430,6 +501,18 @@ function ardCalling(~, ~)
                     handles.text.HVset.BackgroundColor = [0.4 0 0];
                     handles.text.HVset.ForegroundColor = [1 1 1];
                     handles.text.HVset.String = '???';
+                    handles.text.MCP.String = '???';
+                    handles.text.MCP.BackgroundColor = [0.4 0 0];
+                    handles.text.MCP.ForegroundColor = [1 1 1];
+                    handles.text.cath.String = '???';
+                    handles.text.cath.BackgroundColor = [0.4 0 0];
+                    handles.text.cath.ForegroundColor = [1 1 1];
+                    handles.text.mcpout.String = '???';
+                    handles.text.mcpout.BackgroundColor = [0.4 0 0];
+                    handles.text.mcpout.ForegroundColor = [1 1 1];
+                    handles.text.anode.String = '???';
+                    handles.text.anode.BackgroundColor = [0.4 0 0];
+                    handles.text.anode.ForegroundColor = [1 1 1];
                 case 1
                     handles.text.HV.String = 'HV Power ON';
                     handles.text.HV.BackgroundColor = [0 0.4 0];
@@ -443,6 +526,14 @@ function ardCalling(~, ~)
                     handles.text.HVset.ForegroundColor = [0 0 0];
                     handles.text.HVset.String = ...
                         num2str(setting.Arduino.NVwiper);
+                    handles.text.MCP.BackgroundColor = [1 1 0];
+                    handles.text.MCP.ForegroundColor = [0 0 0];
+                    handles.text.cath.BackgroundColor = [1 1 0];
+                    handles.text.cath.ForegroundColor = [0 0 0];
+                    handles.text.mcpout.BackgroundColor = [1 1 0];
+                    handles.text.mcpout.ForegroundColor = [0 0 0];
+                    handles.text.anode.BackgroundColor = [1 1 0];
+                    handles.text.anode.ForegroundColor = [0 0 0];
                     
             end
         case 'S'
