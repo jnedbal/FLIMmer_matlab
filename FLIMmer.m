@@ -12,15 +12,17 @@ end
 
 %% Check if the Digital Potentiometer calibration file exists
 if exist('HVpwrSupply.mat', 'file') == 2
-    setting.calibration.Panode = load('HVpwrSupply.mat', 'Panode');
-    setting.calibration.Pcath = load('HVpwrSupply.mat', 'Pcath');
-    setting.calibration.Pmcp = load('HVpwrSupply.mat', 'Pmcp');
-    setting.calibration.potThresh = load('HVpwrSupply.mat', 'potThresh');
-    setting.calibration.voltThresh = load('HVpwrSupply.mat', 'voltThresh');
+    load('HVpwrSupply.mat', ...
+        'Pcath', 'Pmcp', 'Panode', 'potThresh', 'voltThresh');
+    setting.calibration.Pcath = Pcath;
+    setting.calibration.Pmcp = Pmcp;
+    setting.calibration.Panode = Panode;
+    setting.calibration.potThresh = potThresh;
+    setting.calibration.voltThresh = voltThresh;
 else
-    setting.calibration.Panode = NaN;
     setting.calibration.Pcath = NaN;
     setting.calibration.Pmcp = NaN;
+    setting.calibration.Panode = NaN;
     setting.calibration.potThresh = NaN;
     setting.calibration.voltThresh = NaN;
 end
@@ -61,7 +63,7 @@ end
     
 % Set the figure size to match its content
 handles.fig.Position(3) = setting.fig.unitW;
-handles.fig.Position(4) = 15 * setting.fig.unitH;
+handles.fig.Position(4) = 14.1 * setting.fig.unitH;
 
 setting.fig.pos = handles.fig.Position;
 
@@ -258,7 +260,8 @@ end
 function HVslider(~, ~)
     global handles
     global setting
-
+    % Make sure the slider shows an integer value
+    handles.slider.HV.Value = round(handles.slider.HV.Value);
     % Update the HV edit box with the value on the slider
     handles.edit.HV.String = num2str(handles.slider.HV.Value);
     % Store the value of the digital pot value
@@ -302,9 +305,9 @@ function setPotButton(~, ~)
         return
     end
     % Send the value to the Arduino
-    ardSend([uint8('P'), setting.Arduino.pot]);
+    ardSend([uint8('P'), 255 - setting.Arduino.pot]);
     % Display the value on the textbox
-    handles.text.HVset.String = num2str(setting.Arduino.pot);
+    displayPotValue(setting.Arduino.pot);
 
     % Save the setting for next load into a mat file
     save('config.mat', 'setting')
@@ -324,14 +327,14 @@ function progPotButton(~, ~)
     if isempty(answer) || isequal(answer, 'No')
         return
     end
-    % Send the value to the Arduino
-    ardSend([uint8('P'), setting.Arduino.pot]);
+    % Send the value to the Arduino - this is the pot value
+    ardSend([uint8('P'), 255 - setting.Arduino.pot]);
     % Give the Arduino some time (100ms) to deal with the last transfer
     pause(0.1);
-    % Send the value to the Arduino
-    ardSend([uint8('N'), setting.Arduino.pot]);
+    % Send the value to the Arduino - this is the non-volatile pot value
+    ardSend([uint8('N'), 255 - setting.Arduino.pot]);
     % Display the value on the textbox
-    handles.text.HVset.String = num2str(setting.Arduino.pot);
+    displayPotValue(setting.Arduino.pot);
     
     setting.Arduino.NVwiper = setting.Arduino.pot;
 
@@ -377,21 +380,8 @@ function connectButton(~, ~)
             handles.button.shutter.Tag = 'off';
             handles.button.shutter.BackgroundColor = [0.4 0 0];
             handles.button.shutter.ForegroundColor = [1 1 1];
-            handles.text.HVset.String = '???';
-            handles.text.HVset.BackgroundColor = [0.4 0 0];
-            handles.text.HVset.ForegroundColor = [1 1 1];
-            handles.text.MCP.String = '???';
-            handles.text.MCP.BackgroundColor = [0.4 0 0];
-            handles.text.MCP.ForegroundColor = [1 1 1];
-            handles.text.cath.String = '???';
-            handles.text.cath.BackgroundColor = [0.4 0 0];
-            handles.text.cath.ForegroundColor = [1 1 1];
-            handles.text.mcpout.String = '???';
-            handles.text.mcpout.BackgroundColor = [0.4 0 0];
-            handles.text.mcpout.ForegroundColor = [1 1 1];
-            handles.text.anode.String = '???';
-            handles.text.anode.BackgroundColor = [0.4 0 0];
-            handles.text.anode.ForegroundColor = [1 1 1];
+            % Make the pot value boxes red with ??? values
+            displayPotValue(NaN);
             handles.button.setPot.Tag = 'off';
             handles.button.progPot.Tag = 'off';
             handles.button.setPot.BackgroundColor = [0.4 0 0];
@@ -428,7 +418,7 @@ function ardConnect
     % Open the serial port
     fopen(setting.serial);
     % Wait for the Arduino to wake up
-    h = msgbox('Waiting for Arduino to respond', 'Arduino', 'modal');
+    h = msgbox('Waiting for Arduino to respond', 'FLIMmer', 'modal');
     % Ensure the box appears
     drawnow
     % Wait two second to ensure the arduino is working
@@ -498,21 +488,8 @@ function ardCalling(~, ~)
                     handles.button.progPot.Tag = 'off';
                     handles.button.setPot.BackgroundColor = [0.4 0 0];
                     handles.button.progPot.BackgroundColor = [0.4 0 0];
-                    handles.text.HVset.BackgroundColor = [0.4 0 0];
-                    handles.text.HVset.ForegroundColor = [1 1 1];
-                    handles.text.HVset.String = '???';
-                    handles.text.MCP.String = '???';
-                    handles.text.MCP.BackgroundColor = [0.4 0 0];
-                    handles.text.MCP.ForegroundColor = [1 1 1];
-                    handles.text.cath.String = '???';
-                    handles.text.cath.BackgroundColor = [0.4 0 0];
-                    handles.text.cath.ForegroundColor = [1 1 1];
-                    handles.text.mcpout.String = '???';
-                    handles.text.mcpout.BackgroundColor = [0.4 0 0];
-                    handles.text.mcpout.ForegroundColor = [1 1 1];
-                    handles.text.anode.String = '???';
-                    handles.text.anode.BackgroundColor = [0.4 0 0];
-                    handles.text.anode.ForegroundColor = [1 1 1];
+                    % Make all pot-related values red with ???
+                    displayPotValue(NaN);
                 case 1
                     handles.text.HV.String = 'HV Power ON';
                     handles.text.HV.BackgroundColor = [0 0.4 0];
@@ -522,19 +499,8 @@ function ardCalling(~, ~)
                     handles.button.progPot.Tag = 'on';
                     handles.button.setPot.BackgroundColor = [0 0.4 0];
                     handles.button.progPot.BackgroundColor = [0 0.4 0];
-                    handles.text.HVset.BackgroundColor = [1 1 0];
-                    handles.text.HVset.ForegroundColor = [0 0 0];
-                    handles.text.HVset.String = ...
-                        num2str(setting.Arduino.NVwiper);
-                    handles.text.MCP.BackgroundColor = [1 1 0];
-                    handles.text.MCP.ForegroundColor = [0 0 0];
-                    handles.text.cath.BackgroundColor = [1 1 0];
-                    handles.text.cath.ForegroundColor = [0 0 0];
-                    handles.text.mcpout.BackgroundColor = [1 1 0];
-                    handles.text.mcpout.ForegroundColor = [0 0 0];
-                    handles.text.anode.BackgroundColor = [1 1 0];
-                    handles.text.anode.ForegroundColor = [0 0 0];
-                    
+                    % Display the potentiometer non-volatile wiper pos
+                    displayPotValue(setting.Arduino.NVwiper);
             end
         case 'S'
             switch answer(2)
@@ -550,25 +516,71 @@ function ardCalling(~, ~)
                     handles.button.shutter.String = 'Shutter OPEN';
             end
         case 'E'
-            setting.Arduino.NVwiper = answer(2);
+            setting.Arduino.NVwiper = 255 - answer(2);
             % Show the voltage, only if the HV power is on
             if setting.Arduino.HVpowerOn == 1
-                handles.text.HVset.String = num2str(setting.Arduino.NVwiper);
-                handles.text.HVset.BackgroundColor = [1 1 0];
-                handles.text.HVset.ForegroundColor = [0 0 0];
+                displayPotValue(setting.Arduino.NVwiper)
             else
-                handles.text.HVset.String = '???';
-                handles.text.HVset.BackgroundColor = [0.4 0 0];
-                handles.text.HVset.ForegroundColor = [1 1 1];
+                displayPotValue(NaN)
             end
         case 'P'
-            assert(setting.Arduino.pot == answer(2), ...
+            assert(setting.Arduino.pot == 255 - answer(2), ...
                    'Arduino reported different pot value %d.', answer(2));
-                
+        case 'N'
+            msgbox(sprintf('Non-volatile wiper position set to %d.', ...
+                           255 - answer(2)), 'FLIMmer');
         otherwise
             disp('Arduino says:')
             disp(answer)
     end
     % Mark that data has been received
     setting.waiting4data = false;
+end
+
+function displayPotValue(value)
+% Function to display the pot wiper position and the expected voltages
+% If the input is NaN, then make the values red and add ???
+global setting
+global handles
+if isnan(value)
+    handles.text.HVset.String = '???';
+    handles.text.HVset.BackgroundColor = [0.4 0 0];
+    handles.text.HVset.ForegroundColor = [1 1 1];
+    handles.text.MCP.String = '???';
+    handles.text.MCP.BackgroundColor = [0.4 0 0];
+    handles.text.MCP.ForegroundColor = [1 1 1];
+    handles.text.cath.String = 'CATH: ??? V';
+    handles.text.cath.BackgroundColor = [0.4 0 0];
+    handles.text.cath.ForegroundColor = [1 1 1];
+    handles.text.mcpout.String = 'MCPOUT: ??? V';
+    handles.text.mcpout.BackgroundColor = [0.4 0 0];
+    handles.text.mcpout.ForegroundColor = [1 1 1];
+    handles.text.anode.String = 'ANODE: ??? V';
+    handles.text.anode.BackgroundColor = [0.4 0 0];
+    handles.text.anode.ForegroundColor = [1 1 1];
+else
+    handles.text.HVset.BackgroundColor = [1 1 0];
+    handles.text.HVset.ForegroundColor = [0 0 0];
+    handles.text.HVset.String = num2str(value);
+    handles.text.cath.BackgroundColor = [1 1 0];
+    handles.text.cath.ForegroundColor = [0 0 0];
+    Vcath = polyval(setting.calibration.Pcath, value);
+    handles.text.cath.String = sprintf('CATH: %.0f V', Vcath);
+    handles.text.mcpout.BackgroundColor = [1 1 0];
+    handles.text.mcpout.ForegroundColor = [0 0 0];
+    Vmcp = polyval(setting.calibration.Pmcp, value);
+    handles.text.mcpout.String = sprintf('MCPOUT: %.0f V', Vmcp);
+    handles.text.anode.BackgroundColor = [1 1 0];
+    handles.text.anode.ForegroundColor = [0 0 0];
+    % Check if the pot value is below or above the threshold
+    if value < setting.calibration.potThresh
+        Vanode = polyval(setting.calibration.Panode([1 2]), value);
+    else
+        Vanode = polyval(setting.calibration.Panode([3 4]), value);
+    end
+    handles.text.anode.String = sprintf('ANODE: %.0f V', Vanode);
+    handles.text.MCP.BackgroundColor = [1 1 0];
+    handles.text.MCP.ForegroundColor = [0 0 0];
+    handles.text.MCP.String = sprintf('%.0f V', Vanode - Vcath);
+end
 end
