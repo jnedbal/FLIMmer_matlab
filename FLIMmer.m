@@ -10,6 +10,15 @@ else
     setting.Arduino.pot = 0;
 end
 
+%% Check the settings exist
+if ~isfield(setting, 'Arduino')
+    setting.Arduino.pot = 0;
+end
+if ~isfield(setting, 'light')
+    setting.light.pot = 0;
+    setting.light.pwm = 0;
+end
+
 %% Check if the Digital Potentiometer calibration file exists
 if exist('HVpwrSupply.mat', 'file') == 2
     load('HVpwrSupply.mat', ...
@@ -63,7 +72,7 @@ end
     
 % Set the figure size to match its content
 handles.fig.Position(3) = setting.fig.unitW;
-handles.fig.Position(4) = 14.1 * setting.fig.unitH;
+handles.fig.Position(4) = 23.1 * setting.fig.unitH;
 
 setting.fig.pos = handles.fig.Position;
 
@@ -225,6 +234,88 @@ handles.button.progPot = uicontrol('Style', 'pushbutton', ...
                                             'ForegroundColor', [1 1 1], ...
                                             'Tag', 'off');
 
+%% Create a pushbutton for the light ON/OFF
+pos(2) = pos(2) - setting.fig.unitH;
+handles.button.lightON = uicontrol('Style', 'pushbutton', ...
+                                            'String', 'Transmission Light', ...
+                                            'Position', pos, ...
+                                            'HorizontalAlignment', 'center', ...
+                                            'Callback', @lightButton, ...
+                                            'BackgroundColor', [0.4 0 0], ...
+                                            'ForegroundColor', [1 1 1], ...
+                                            'Tag', 'off');
+
+%% Create a slider for light PWM
+pos(2) = pos(2) - setting.fig.unitH;
+handles.slider.lightPWM = uicontrol('Style', 'slider', ...
+                                             'Position', pos, ...
+                                             'Min', 0, ...
+                                             'Max', 100, ...
+                                             'SliderStep', [1, 32] / 100, ...
+                                             'Callback', @lightPWMslider, ...
+                                             'Enable', 'off', ...
+                                             'Value', setting.light.pwm);
+
+%% Create a text box for light PWM
+pos(2) = pos(2) - setting.fig.unitH;
+handles.edit.lightPWM = uicontrol('Style', 'edit', ...
+                                           'Position', pos, ...
+                                           'String', num2str(setting.light.pwm), ...
+                                           'HorizontalAlignment', 'center', ...
+                                           'Callback', @lightPWMedit, ...
+                                           'Enable', 'off');
+
+%% Create a box for light supply PWM
+pos(2) = pos(2) - setting.fig.unitH * 1.5;
+handles.text.lightPWMset = uicontrol('Style', 'text', ...
+                                              'String', '??? %', ...
+                                              'Position', pos .* [1 1 1 1.5], ...
+                                              'HorizontalAlignment', 'center', ...
+                                              'BackgroundColor', [0.4 0 0], ...
+                                              'ForegroundColor', [1 1 1]);
+% Set the fontsize to 150 % of the usual
+handles.text.lightPWMset.FontSize = 1.5 * handles.text.lightPWMset.FontSize;
+
+%% Create a slider for light supply voltage
+pos(2) = pos(2) - setting.fig.unitH;
+handles.slider.lightV = uicontrol('Style', 'slider', ...
+                                           'Position', pos, ...
+                                           'Min', 0, ...
+                                           'Max', 127, ...
+                                           'SliderStep', [1, 16] / 127, ...
+                                           'Callback', @lightVslider, ...
+                                           'Enable', 'off', ...
+                                           'Value', setting.light.pot);
+
+
+%% Create a text box for light supply voltage
+pos(2) = pos(2) - setting.fig.unitH;
+handles.edit.lightV = uicontrol('Style', 'edit', ...
+                                         'Position', pos, ...
+                                         'String', num2str(setting.light.pot), ...
+                                         'HorizontalAlignment', 'center', ...
+                                         'Callback', @lightVedit, ...
+                                         'Enable', 'off');
+
+%% Create a box for light supply power
+pos(2) = pos(2) - setting.fig.unitH * 1.5;
+handles.text.lightVset = uicontrol('Style', 'text', ...
+                                            'String', '??? V', ...
+                                            'Position', pos .* [1 1 1 1.5], ...
+                                            'HorizontalAlignment', 'center', ...
+                                            'BackgroundColor', [0.4 0 0], ...
+                                            'ForegroundColor', [1 1 1]);
+% Set the fontsize to 150 % of the usual
+handles.text.lightVset.FontSize = 1.5 * handles.text.lightVset.FontSize;
+
+%% Create a text box for light supply Error
+pos(2) = pos(2) - setting.fig.unitH * 1.5;
+handles.text.lightError = uicontrol('Style', 'text', ...
+                                             'String', 'LIGHT OFF', ...
+                                             'Position', pos .* [1 1 1 1.5], ...
+                                             'HorizontalAlignment', 'center', ...
+                                             'BackgroundColor', [0.4 0 0], ...
+                                             'ForegroundColor', [1 1 1]);
 
 %% Create a box for Firmware Name
 pos(2) = pos(2) - setting.fig.unitH;
@@ -410,9 +501,8 @@ function ardConnect
 
     % Create serial port object
     setting.serial = serial(setting.port);
-    % add a callback to bytes available. This is designed for the code to
-    % listen to any messages from the Arduino
-    setting.serial.BytesAvailableFcn = @ardCalling;
+    % Set the call function to bytes. It is required that at least 2 bytes
+    % must be received
     setting.serial.BytesAvailableFcnMode = 'byte';
     setting.serial.BytesAvailableFcnCount = 2;
     % Open the serial port
@@ -428,6 +518,9 @@ function ardConnect
         % Dump the buffer
         fread(setting.serial, setting.serial.BytesAvailable);
     end
+    % add a callback to bytes available. This is designed for the code to
+    % listen to any messages from the Arduino
+    setting.serial.BytesAvailableFcn = @ardCalling;
     % Close the message box
     delete(h);
     % query the Arduino for identity
@@ -466,17 +559,18 @@ function ardCalling(~, ~)
     % Wait for the Arduino to send the full string
     while setting.serial.BytesAvailable < responseLength; end
     % Read the string
-    answer = fread(setting.serial, setting.serial.BytesAvailable)';
+    % answer = fread(setting.serial, setting.serial.BytesAvailable)';
+    answer = fread(setting.serial, responseLength)';
     % Decipher the answer
     switch char(answer(1))
-        case 'I'
+        case 'I' % 73
             setting.Arduino.ID = char(answer(2 : end));
-        case 'V'
+        case 'V' % 86
             setting.Arduino.version = char(answer(2 : end));
             handles.text.ID.String = sprintf('%s v%s', ...
                                              setting.Arduino.ID, ...
                                              setting.Arduino.version);
-        case 'H'
+        case 'H' % 72
             setting.Arduino.HVpowerOn = answer(2);
             switch setting.Arduino.HVpowerOn
                 case 0
@@ -502,7 +596,7 @@ function ardCalling(~, ~)
                     % Display the potentiometer non-volatile wiper pos
                     displayPotValue(setting.Arduino.NVwiper);
             end
-        case 'S'
+        case 'S' % 83
             switch answer(2)
                 case 1
                     setting.Arduino.shutter = 'CLOSED';
@@ -515,7 +609,7 @@ function ardCalling(~, ~)
                     handles.button.shutter.ForegroundColor = [0 0 0];
                     handles.button.shutter.String = 'Shutter OPEN';
             end
-        case 'E'
+        case 'E' % 69
             setting.Arduino.NVwiper = 255 - answer(2);
             % Show the voltage, only if the HV power is on
             if setting.Arduino.HVpowerOn == 1
@@ -523,7 +617,7 @@ function ardCalling(~, ~)
             else
                 displayPotValue(NaN)
             end
-        case 'P'
+        case 'P' % 80
             assert(setting.Arduino.pot == 255 - answer(2), ...
                    'Arduino reported different pot value %d.', answer(2));
         case 'N'
@@ -533,8 +627,11 @@ function ardCalling(~, ~)
             disp('Arduino says:')
             disp(answer)
     end
-    % Mark that data has been received
-    setting.waiting4data = false;
+    % Check if there is mo data in the buffer
+    if ~setting.serial.BytesAvailable
+        % Mark that data has been received
+        setting.waiting4data = false;
+    end
 end
 
 function displayPotValue(value)
@@ -582,5 +679,51 @@ else
     handles.text.MCP.BackgroundColor = [1 1 0];
     handles.text.MCP.ForegroundColor = [0 0 0];
     handles.text.MCP.String = sprintf('%.0f V', Vanode - Vcath);
+end
+end
+
+
+
+function displayLightValue(value)
+% Function to display the pot wiper position and the expected voltages
+% If the input is NaN, then make the values red and add ???
+global setting
+global handles
+% Light PWM value
+if isnan(value(1))
+    handles.text.lightPWMset.String = '??? %';
+    handles.text.lightPWMset.BackgroundColor = [0.4 0 0];
+    handles.text.lightPWMset.ForegroundColor = [1 1 1];
+else
+    handles.text.lightPWMset.BackgroundColor = [1 1 0];
+    handles.text.lightPWMset.ForegroundColor = [0 0 0];
+    handles.text.lightPWMset.String = sprintf('%.0f %', value(1) / 2.55);
+end
+
+% Light Voltage value
+if isnan(value(2))
+    handles.text.lightVset.String = '??? V';
+    handles.text.lightVset.BackgroundColor = [0.4 0 0];
+    handles.text.lightVset.ForegroundColor = [1 1 1];
+else
+    handles.text.lightVset.BackgroundColor = [1 1 0];
+    handles.text.lightVset.ForegroundColor = [0 0 0];
+    Vlight = polyval(setting.calibration.lightV, value(2));
+    handles.text.lightVset.String = sprintf('%.0f V', Vlight);
+end
+
+% Light error
+if isnan(value(3))
+    handles.text.lightError.String = 'LIGHT OFF';
+    handles.text.lightError.BackgroundColor = [0.4 0 0];
+    handles.text.lightError.ForegroundColor = [1 1 1];
+elseif value(3) == 0
+    handles.text.lightVset.String = 'LIGHT ERROR';
+    handles.text.lightVset.BackgroundColor = [1 1 1];
+    handles.text.lightVset.ForegroundColor = [1 0 0];
+else
+    handles.text.lightVset.String = 'LIGHT OK';
+    handles.text.lightVset.BackgroundColor = [1 1 1];
+    handles.text.lightVset.ForegroundColor = [1 0 0];
 end
 end
