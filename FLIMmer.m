@@ -17,13 +17,14 @@ end
 if ~isfield(setting, 'light')
     setting.light.pot = 0;
     setting.light.pwm = 0;
+    setting.light.error = 0;
 end
 
 %% Check if the Digital Potentiometer calibration file exists
 if exist('HVpwrSupply.mat', 'file') == 2
     load('HVpwrSupply.mat', ...
         'Pcath', 'Pmcp', 'Panode', 'potThresh', 'voltThresh');
-    setting.calibration.Pcath = Pcath;
+    setting.calibration.Lpwr = Pcath;
     setting.calibration.Pmcp = Pmcp;
     setting.calibration.Panode = Panode;
     setting.calibration.potThresh = potThresh;
@@ -34,6 +35,14 @@ else
     setting.calibration.Panode = NaN;
     setting.calibration.potThresh = NaN;
     setting.calibration.voltThresh = NaN;
+end
+
+%% Check if the Light Voltage Supply calibration file exists
+if exist('lightPwrSupply.mat', 'file') == 2
+    load('lightPwrSupply.mat', 'Lpwr');
+    setting.calibration.Lpwr = Lpwr;
+else
+    setting.calibration.Lpwr = NaN;
 end
 
 %% Create a figure
@@ -235,87 +244,79 @@ handles.button.progPot = uicontrol('Style', 'pushbutton', ...
                                             'Tag', 'off');
 
 %% Create a pushbutton for the light ON/OFF
-pos(2) = pos(2) - setting.fig.unitH;
+pos(2) = pos(2) - setting.fig.unitH * 1.5;
 handles.button.lightON = uicontrol('Style', 'pushbutton', ...
-                                            'String', 'Transmission Light', ...
-                                            'Position', pos, ...
-                                            'HorizontalAlignment', 'center', ...
-                                            'Callback', @lightButton, ...
-                                            'BackgroundColor', [0.4 0 0], ...
-                                            'ForegroundColor', [1 1 1], ...
-                                            'Tag', 'off');
+                                   'String', 'Light ???', ...
+                                   'Position', pos .* [1 1 1 1.5], ...
+                                   'HorizontalAlignment', 'center', ...
+                                   'Callback', @lightButton, ...
+                                   'BackgroundColor', [0.4 0 0], ...
+                                   'ForegroundColor', [1 1 1], ...
+                                   'Tag', 'off');
+% Set the fontsize to 150 % of the usual
+handles.button.lightON.FontSize = 1.5 * handles.button.lightON.FontSize;
 
 %% Create a slider for light PWM
 pos(2) = pos(2) - setting.fig.unitH;
 handles.slider.lightPWM = uicontrol('Style', 'slider', ...
-                                             'Position', pos, ...
-                                             'Min', 0, ...
-                                             'Max', 100, ...
-                                             'SliderStep', [1, 32] / 100, ...
-                                             'Callback', @lightPWMslider, ...
-                                             'Enable', 'off', ...
-                                             'Value', setting.light.pwm);
+                                    'Position', pos, ...
+                                    'Min', 0, ...
+                                    'Max', 255, ...
+                                    'SliderStep', [1, 32] / 255, ...
+                                    'Callback', @lightPWMslider, ...
+                                    'Enable', 'off', ...
+                                    'Value', setting.light.pwm);
 
 %% Create a text box for light PWM
 pos(2) = pos(2) - setting.fig.unitH;
 handles.edit.lightPWM = uicontrol('Style', 'edit', ...
-                                           'Position', pos, ...
-                                           'String', num2str(setting.light.pwm), ...
-                                           'HorizontalAlignment', 'center', ...
-                                           'Callback', @lightPWMedit, ...
-                                           'Enable', 'off');
+                                  'Position', pos, ...
+                                  'String', num2str(setting.light.pwm), ...
+                                  'HorizontalAlignment', 'center', ...
+                                  'Callback', @lightPWMedit, ...
+                                  'Enable', 'off');
 
 %% Create a box for light supply PWM
 pos(2) = pos(2) - setting.fig.unitH * 1.5;
 handles.text.lightPWMset = uicontrol('Style', 'text', ...
-                                              'String', '??? %', ...
-                                              'Position', pos .* [1 1 1 1.5], ...
-                                              'HorizontalAlignment', 'center', ...
-                                              'BackgroundColor', [0.4 0 0], ...
-                                              'ForegroundColor', [1 1 1]);
+                                     'String', '??? %', ...
+                                     'Position', pos .* [1 1 1 1.5], ...
+                                     'HorizontalAlignment', 'center', ...
+                                     'BackgroundColor', [0.4 0 0], ...
+                                     'ForegroundColor', [1 1 1]);
 % Set the fontsize to 150 % of the usual
 handles.text.lightPWMset.FontSize = 1.5 * handles.text.lightPWMset.FontSize;
 
 %% Create a slider for light supply voltage
 pos(2) = pos(2) - setting.fig.unitH;
 handles.slider.lightV = uicontrol('Style', 'slider', ...
-                                           'Position', pos, ...
-                                           'Min', 0, ...
-                                           'Max', 127, ...
-                                           'SliderStep', [1, 16] / 127, ...
-                                           'Callback', @lightVslider, ...
-                                           'Enable', 'off', ...
-                                           'Value', setting.light.pot);
-
+                                  'Position', pos, ...
+                                  'Min', 0, ...
+                                  'Max', 127, ...
+                                  'SliderStep', [1, 16] / 127, ...
+                                  'Callback', @lightVslider, ...
+                                  'Enable', 'off', ...
+                                  'Value', setting.light.pot);
 
 %% Create a text box for light supply voltage
 pos(2) = pos(2) - setting.fig.unitH;
 handles.edit.lightV = uicontrol('Style', 'edit', ...
-                                         'Position', pos, ...
-                                         'String', num2str(setting.light.pot), ...
-                                         'HorizontalAlignment', 'center', ...
-                                         'Callback', @lightVedit, ...
-                                         'Enable', 'off');
+                                'Position', pos, ...
+                                'String', num2str(setting.light.pot), ...
+                                'HorizontalAlignment', 'center', ...
+                                'Callback', @lightVedit, ...
+                                'Enable', 'off');
 
 %% Create a box for light supply power
 pos(2) = pos(2) - setting.fig.unitH * 1.5;
 handles.text.lightVset = uicontrol('Style', 'text', ...
-                                            'String', '??? V', ...
-                                            'Position', pos .* [1 1 1 1.5], ...
-                                            'HorizontalAlignment', 'center', ...
-                                            'BackgroundColor', [0.4 0 0], ...
-                                            'ForegroundColor', [1 1 1]);
+                                   'String', '??? V', ...
+                                   'Position', pos .* [1 1 1 1.5], ...
+                                   'HorizontalAlignment', 'center', ...
+                                   'BackgroundColor', [0.4 0 0], ...
+                                   'ForegroundColor', [1 1 1]);
 % Set the fontsize to 150 % of the usual
 handles.text.lightVset.FontSize = 1.5 * handles.text.lightVset.FontSize;
-
-%% Create a text box for light supply Error
-pos(2) = pos(2) - setting.fig.unitH * 1.5;
-handles.text.lightError = uicontrol('Style', 'text', ...
-                                             'String', 'LIGHT OFF', ...
-                                             'Position', pos .* [1 1 1 1.5], ...
-                                             'HorizontalAlignment', 'center', ...
-                                             'BackgroundColor', [0.4 0 0], ...
-                                             'ForegroundColor', [1 1 1]);
 
 %% Create a box for Firmware Name
 pos(2) = pos(2) - setting.fig.unitH;
@@ -347,6 +348,67 @@ function shutterButton(~, ~)
     % Toggle the shutter button    
     ardSend('T');
 end
+
+function lightButton(~, ~)
+    global handles
+
+    % If this function is disabled, don't do anything
+    if isequal(handles.button.shutter.Tag, 'off')
+        return
+    end
+    % Toggle the shutter button    
+    ardSend('t');
+end
+
+function lightPWMslider(~, ~)
+    global handles
+    % Send the updated value to Arduino
+    ardSend([uint8('M'), round(handles.slider.lightPWM.Value)])
+end
+
+function lightPWMedit(~, ~)
+    global handles
+
+    % Check whether the value is not numeric
+    % Check if a negative value has been provided
+    % Check if a value higher than the maximum limit has been provided
+    editVal = 2.55 * str2double(handles.edit.lightPWM.String);
+    if isnan(editVal) || ...
+            editVal < handles.slider.lightPWM.Min || ...
+            editVal > handles.slider.lightPWM.Max
+            % Update the display to the original value
+            displayLightValue
+        return
+    end
+    % Send the updated value to Arduino
+    ardSend([uint8('M'), round(editVal)])
+end
+
+
+function lightVslider(~, ~)
+    global handles
+    % Send the updated value to Arduino
+    ardSend([uint8('L'), round(handles.slider.lightV.Value)])
+end
+
+function lightVedit(~, ~)
+    global handles
+
+    % Check whether the value is not numeric
+    % Check if a negative value has been provided
+    % Check if a value higher than the maximum limit has been provided
+    editVal = 127 - str2double(handles.edit.lightV.String);
+    if isnan(editVal) || ...
+            editVal < handles.slider.lightV.Min || ...
+            editVal > handles.slider.lightV.Max
+            % Update the display to the original value
+            displayLightValue
+        return
+    end
+    % Send the updated value to Arduino
+    ardSend([uint8('L'), round(editVal)])
+end
+
 
 function HVslider(~, ~)
     global handles
@@ -478,6 +540,11 @@ function connectButton(~, ~)
             handles.button.setPot.BackgroundColor = [0.4 0 0];
             handles.button.progPot.BackgroundColor = [0.4 0 0];
             handles.text.ID.String = '';
+            % Make the lamp value boxes red with ??? values
+            setting.light.state = NaN;
+            setting.light.pot = NaN;
+            setting.light.pwm = NaN;
+            displayLightValue;
     end
 end
 
@@ -533,6 +600,15 @@ function ardConnect
     ardSend('S');
     % check the NV wiper setting
     ardSend('E');
+    % turn off the lamp
+    setting.light.state = 0;
+    ardSend([uint8('w'), 0]);
+    % check the lamp power supply error
+    ardSend('e');
+    % check the lamp voltage
+    ardSend('l');
+    % check the lamp PWM
+    ardSend('m');
 end
 
 function ardSend(command)
@@ -620,9 +696,25 @@ function ardCalling(~, ~)
         case 'P' % 80
             assert(setting.Arduino.pot == 255 - answer(2), ...
                    'Arduino reported different pot value %d.', answer(2));
-        case 'N'
+        case 'N' % 78
             msgbox(sprintf('Non-volatile wiper position set to %d.', ...
                            255 - answer(2)), 'FLIMmer');
+        case 'w' % 119
+            % Store the lamp state
+            setting.light.state = answer(2);
+            displayLightValue;
+        case 'e' % 101
+            % Store the lamp voltage error
+            setting.light.error = 1 - answer(2);
+            displayLightValue;
+        case {'l', 'L'} % 108, 76
+            % Store the lamp voltage error
+            setting.light.pot = answer(2);
+            displayLightValue;
+        case {'m', 'M'} % 109, 77
+            % Store the lamp voltage error
+            setting.light.pwm = answer(2);
+            displayLightValue;
         otherwise
             disp('Arduino says:')
             disp(answer)
@@ -635,95 +727,126 @@ function ardCalling(~, ~)
 end
 
 function displayPotValue(value)
-% Function to display the pot wiper position and the expected voltages
-% If the input is NaN, then make the values red and add ???
-global setting
-global handles
-if isnan(value)
-    handles.text.HVset.String = '???';
-    handles.text.HVset.BackgroundColor = [0.4 0 0];
-    handles.text.HVset.ForegroundColor = [1 1 1];
-    handles.text.MCP.String = '???';
-    handles.text.MCP.BackgroundColor = [0.4 0 0];
-    handles.text.MCP.ForegroundColor = [1 1 1];
-    handles.text.cath.String = 'CATH: ??? V';
-    handles.text.cath.BackgroundColor = [0.4 0 0];
-    handles.text.cath.ForegroundColor = [1 1 1];
-    handles.text.mcpout.String = 'MCPOUT: ??? V';
-    handles.text.mcpout.BackgroundColor = [0.4 0 0];
-    handles.text.mcpout.ForegroundColor = [1 1 1];
-    handles.text.anode.String = 'ANODE: ??? V';
-    handles.text.anode.BackgroundColor = [0.4 0 0];
-    handles.text.anode.ForegroundColor = [1 1 1];
-else
-    handles.text.HVset.BackgroundColor = [1 1 0];
-    handles.text.HVset.ForegroundColor = [0 0 0];
-    handles.text.HVset.String = num2str(value);
-    handles.text.cath.BackgroundColor = [1 1 0];
-    handles.text.cath.ForegroundColor = [0 0 0];
-    Vcath = polyval(setting.calibration.Pcath, value);
-    handles.text.cath.String = sprintf('CATH: %.0f V', Vcath);
-    handles.text.mcpout.BackgroundColor = [1 1 0];
-    handles.text.mcpout.ForegroundColor = [0 0 0];
-    Vmcp = polyval(setting.calibration.Pmcp, value);
-    handles.text.mcpout.String = sprintf('MCPOUT: %.0f V', Vmcp);
-    handles.text.anode.BackgroundColor = [1 1 0];
-    handles.text.anode.ForegroundColor = [0 0 0];
-    % Check if the pot value is below or above the threshold
-    if value < setting.calibration.potThresh
-        Vanode = polyval(setting.calibration.Panode([1 2]), value);
+    % Function to display the pot wiper position and the expected voltages
+    % If the input is NaN, then make the values red and add ???
+    global setting
+    global handles
+    if isnan(value)
+        handles.text.HVset.String = '???';
+        handles.text.HVset.BackgroundColor = [0.4 0 0];
+        handles.text.HVset.ForegroundColor = [1 1 1];
+        handles.text.MCP.String = '???';
+        handles.text.MCP.BackgroundColor = [0.4 0 0];
+        handles.text.MCP.ForegroundColor = [1 1 1];
+        handles.text.cath.String = 'CATH: ??? V';
+        handles.text.cath.BackgroundColor = [0.4 0 0];
+        handles.text.cath.ForegroundColor = [1 1 1];
+        handles.text.mcpout.String = 'MCPOUT: ??? V';
+        handles.text.mcpout.BackgroundColor = [0.4 0 0];
+        handles.text.mcpout.ForegroundColor = [1 1 1];
+        handles.text.anode.String = 'ANODE: ??? V';
+        handles.text.anode.BackgroundColor = [0.4 0 0];
+        handles.text.anode.ForegroundColor = [1 1 1];
     else
-        Vanode = polyval(setting.calibration.Panode([3 4]), value);
+        handles.text.HVset.BackgroundColor = [1 1 0];
+        handles.text.HVset.ForegroundColor = [0 0 0];
+        handles.text.HVset.String = num2str(value);
+        handles.text.cath.BackgroundColor = [1 1 0];
+        handles.text.cath.ForegroundColor = [0 0 0];
+        Vcath = polyval(setting.calibration.Pcath, value);
+        handles.text.cath.String = sprintf('CATH: %.0f V', Vcath);
+        handles.text.mcpout.BackgroundColor = [1 1 0];
+        handles.text.mcpout.ForegroundColor = [0 0 0];
+        Vmcp = polyval(setting.calibration.Pmcp, value);
+        handles.text.mcpout.String = sprintf('MCPOUT: %.0f V', Vmcp);
+        handles.text.anode.BackgroundColor = [1 1 0];
+        handles.text.anode.ForegroundColor = [0 0 0];
+        % Check if the pot value is below or above the threshold
+        if value < setting.calibration.potThresh
+            Vanode = polyval(setting.calibration.Panode([1 2]), value);
+        else
+            Vanode = polyval(setting.calibration.Panode([3 4]), value);
+        end
+        handles.text.anode.String = sprintf('ANODE: %.0f V', Vanode);
+        handles.text.MCP.BackgroundColor = [1 1 0];
+        handles.text.MCP.ForegroundColor = [0 0 0];
+        handles.text.MCP.String = sprintf('%.0f V', Vanode - Vcath);
     end
-    handles.text.anode.String = sprintf('ANODE: %.0f V', Vanode);
-    handles.text.MCP.BackgroundColor = [1 1 0];
-    handles.text.MCP.ForegroundColor = [0 0 0];
-    handles.text.MCP.String = sprintf('%.0f V', Vanode - Vcath);
-end
 end
 
 
 
-function displayLightValue(value)
-% Function to display the pot wiper position and the expected voltages
-% If the input is NaN, then make the values red and add ???
-global setting
-global handles
-% Light PWM value
-if isnan(value(1))
-    handles.text.lightPWMset.String = '??? %';
-    handles.text.lightPWMset.BackgroundColor = [0.4 0 0];
-    handles.text.lightPWMset.ForegroundColor = [1 1 1];
-else
-    handles.text.lightPWMset.BackgroundColor = [1 1 0];
-    handles.text.lightPWMset.ForegroundColor = [0 0 0];
-    handles.text.lightPWMset.String = sprintf('%.0f %', value(1) / 2.55);
-end
+function displayLightValue
+    % Function to display the pot wiper position and the expected voltages
+    % If the input is NaN, then make the values red and add ???
+    global setting
+    global handles
 
-% Light Voltage value
-if isnan(value(2))
-    handles.text.lightVset.String = '??? V';
-    handles.text.lightVset.BackgroundColor = [0.4 0 0];
-    handles.text.lightVset.ForegroundColor = [1 1 1];
-else
-    handles.text.lightVset.BackgroundColor = [1 1 0];
-    handles.text.lightVset.ForegroundColor = [0 0 0];
-    Vlight = polyval(setting.calibration.lightV, value(2));
-    handles.text.lightVset.String = sprintf('%.0f V', Vlight);
-end
+    % Light button
+    if isnan(setting.light.state)
+        handles.button.lightON.String = 'Light ???';
+        handles.button.lightON.BackgroundColor = [0.4 0 0];
+        handles.button.lightON.ForegroundColor = [1 1 1];
+    else
+        switch setting.light.state + setting.light.error * 2
+            case 3
+                handles.button.lightON.String = 'Light ERROR ON';
+                handles.button.lightON.BackgroundColor = [1 1 1];
+                handles.button.lightON.ForegroundColor = [1 0 0];
+            case 2
+                handles.button.lightON.String = 'Light ERROR OFF';
+                handles.button.lightON.BackgroundColor = [1 1 1];
+                handles.button.lightON.ForegroundColor = [1 0 0];
+            case 1
+                handles.button.lightON.String = 'LIGHT ON';
+                handles.button.lightON.BackgroundColor = [1 1 1];
+                handles.button.lightON.ForegroundColor = [0 0 0];
+            case 0
+                handles.button.lightON.String = 'LIGHT OFF';
+                handles.button.lightON.BackgroundColor = [0 0 0];
+                handles.button.lightON.ForegroundColor = [1 1 1];
+        end
+    end
 
-% Light error
-if isnan(value(3))
-    handles.text.lightError.String = 'LIGHT OFF';
-    handles.text.lightError.BackgroundColor = [0.4 0 0];
-    handles.text.lightError.ForegroundColor = [1 1 1];
-elseif value(3) == 0
-    handles.text.lightVset.String = 'LIGHT ERROR';
-    handles.text.lightVset.BackgroundColor = [1 1 1];
-    handles.text.lightVset.ForegroundColor = [1 0 0];
-else
-    handles.text.lightVset.String = 'LIGHT OK';
-    handles.text.lightVset.BackgroundColor = [1 1 1];
-    handles.text.lightVset.ForegroundColor = [1 0 0];
-end
+    % Light PWM value
+    if isnan(setting.light.pwm)
+        handles.text.lightPWMset.String = '??? %';
+        handles.text.lightPWMset.BackgroundColor = [0.4 0 0];
+        handles.text.lightPWMset.ForegroundColor = [1 1 1];
+        handles.slider.lightPWM.Enable = 'off';
+        handles.edit.lightPWMset.Enable = 'off';
+    else
+        handles.text.lightPWMset.BackgroundColor = [1 1 0];
+        handles.text.lightPWMset.ForegroundColor = [0 0 0];
+        handles.text.lightPWMset.String = ...
+            sprintf('%.1f %%', setting.light.pwm / 2.55);
+        handles.slider.lightPWM.Enable = 'on';
+        handles.slider.lightPWM.Value = setting.light.pwm;
+        handles.edit.lightPWM.Enable = 'on';
+        handles.edit.lightPWM.String = ...
+            sprintf('%.1f', setting.light.pwm / 2.55);
+    end
+    
+    % Light Voltage value
+    if isnan(setting.light.pot)
+        handles.text.lightVset.String = '??? V';
+        handles.text.lightVset.BackgroundColor = [0.4 0 0];
+        handles.text.lightVset.ForegroundColor = [1 1 1];
+        handles.slider.lightV.Enable = 'off';
+        handles.edit.lightV.Enable = 'off';
+    else
+        handles.text.lightVset.BackgroundColor = [1 1 0];
+        handles.text.lightVset.ForegroundColor = [0 0 0];
+        Vlight = polyval(setting.calibration.Lpwr, 127 - setting.light.pot);
+        handles.text.lightVset.String = sprintf('%.1f V', Vlight);
+        handles.slider.lightV.Enable = 'on';
+        handles.slider.lightV.Value = setting.light.pot;
+        handles.edit.lightV.Enable = 'on';
+        handles.edit.lightV.String = num2str(setting.light.pot);
+    end
+
+    % Save the setting for next load into a mat file
+    if ~isnan(setting.light.state)
+        save('config.mat', 'setting')
+    end
 end
