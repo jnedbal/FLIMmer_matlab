@@ -19,6 +19,14 @@ if ~isfield(setting, 'light')
     setting.light.pwm = 0;
     setting.light.error = 0;
 end
+if ~isfield(setting, 'Polarizer')
+    setting.Polarizer.set = [0 0];
+else
+    if ~isfield(setting.Polarizer, 'set')
+        setting.Polarizer.set = [0 0];
+    end
+end
+
 
 %% Check if the Digital Potentiometer calibration file exists
 if exist('HVpwrSupply.mat', 'file') == 2
@@ -47,7 +55,7 @@ end
 
 %% Create a figure
 setting.fig.unitH = 20;
-setting.fig.unitW = 180;
+setting.fig.unitW = 360;
 
 handles.fig = figure('Units', 'Pixels', ...
                      'Toolbar', 'none', ...
@@ -90,7 +98,7 @@ setting.fig.pos = handles.fig.Position;
 %% Create a dropdown list of serial ports
 pos = [1, ...
        setting.fig.pos(4) - setting.fig.unitH, ...
-       setting.fig.unitW, ...
+       setting.fig.unitW / 2, ...
        setting.fig.unitH];
 % Store list of available serial ports
 portlist = seriallist;
@@ -110,6 +118,10 @@ if isfield(setting, 'port')
     end
     if any(index)
         handles.dropdown.port.Value = find(index);
+    elseif numel(portlist) > 0
+        setting.port = portlist{handles.dropdown.port.Value};
+    else
+        setting.port = '';
     end
 end
 
@@ -318,6 +330,70 @@ handles.text.lightVset = uicontrol('Style', 'text', ...
 % Set the fontsize to 150 % of the usual
 handles.text.lightVset.FontSize = 1.5 * handles.text.lightVset.FontSize;
 
+
+
+%% Create a box for Firmware Name
+pos(2) = pos(2) - setting.fig.unitH;
+handles.text.ID = uicontrol('Style', 'text', ...
+                            'String', '', ...
+                            'Position', pos);
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%                          Polarizer                          %%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Create a dropdown list of serial ports
+pos = [setting.fig.unitW / 2, ...
+       setting.fig.pos(4) - setting.fig.unitH, ...
+       setting.fig.unitW / 2, ...
+       setting.fig.unitH];
+% Store list of available serial ports
+portlist = seriallist;
+handles.dropdown.portPol = uicontrol('Style', 'popupmenu', ...
+                                              'String', portlist, ...
+                                              'Position', pos, ...
+                                              'Callback', @serPolDropdown);
+% Check if the port setting has been stored
+if isfield(setting, 'portPol')
+    % Check if any of the available serial ports have been already selected
+    % We need to distinguish between cases with a single port and multiple
+    % ports
+    if numel(portlist) == 1
+        index = regexp(portlist, setting.portPol);
+    else
+        index = ~cellfun(@isempty, regexp(portlist, setting.portPol));
+    end
+    if any(index)
+        handles.dropdown.portPol.Value = find(index);
+    elseif numel(portlist) > 0
+        setting.portPol = portlist{handles.dropdown.portPol.Value};
+    else
+        setting.portPol = '';
+    end
+end
+
+%% Create a pushbutton for serial connect
+pos(2) = pos(2) - setting.fig.unitH;
+handles.button.connectPol = uicontrol('Style', 'pushbutton', ...
+                                               'String', 'Connect', ...
+                                               'Position', pos, ...
+                                               'HorizontalAlignment', 'center', ...
+                                               'Callback', @connectPolButton, ...
+                                               'BackgroundColor', [0.4 0 0], ...
+                                               'ForegroundColor', [1 1 1], ...
+                                               'Tag', 'on');
+
+
+
+%% Create a box for power supply voltage
+pos(2) = pos(2) - setting.fig.unitH;
+handles.text.pwrVolt = uicontrol('Style', 'text', ...
+                                 'String', 'Power Supply ???', ...
+                                 'Position', pos, ...
+                                 'HorizontalAlignment', 'center', ...
+                                 'BackgroundColor', [0.4 0 0], ...
+                                 'ForegroundColor', [1 1 1]);
+
 %% Create a pushbutton for the laser shutter button
 pos(2) = pos(2) - setting.fig.unitH * 1.5;
 handles.button.lasShut = uicontrol('Style', 'pushbutton', ...
@@ -340,7 +416,8 @@ handles.slider.pol(1) = uicontrol('Style', 'slider', ...
                                   'SliderStep', [1, 32] / 799, ...
                                   'Callback', @polarizerSlider, ...
                                   'Enable', 'off', ...
-                                  'Value', setting.polarizer.set(1));
+                                  'Value', setting.Polarizer.set(1), ...
+                                  'Tag', 'off');
 handles.slider.pol(2) = uicontrol('Style', 'slider', ...
                                   'Position', pos .* [1 1 0.5 1] + [pos(3)/2 0 0 0], ...
                                   'Min', 0, ...
@@ -348,22 +425,26 @@ handles.slider.pol(2) = uicontrol('Style', 'slider', ...
                                   'SliderStep', [1, 32] / 799, ...
                                   'Callback', @polarizerSlider, ...
                                   'Enable', 'off', ...
-                                  'Value', setting.polarizer.set(2));
+                                  'Value', setting.Polarizer.set(2), ...
+                                  'Tag', 'off');
+setting.Polarizer.val = setting.Polarizer.set;
 
 %% Create editable boxes for polarizer setting
 pos(2) = pos(2) - setting.fig.unitH;
 handles.edit.pol(1) = uicontrol('Style', 'edit', ...
                                 'Position', pos .* [1 1 0.5 1], ...
-                                'String', num2str(setting.polarizer.set(1)), ...
+                                'String', num2str(setting.Polarizer.set(1)), ...
                                 'HorizontalAlignment', 'center', ...
                                 'Callback', @polarizerEdit, ...
-                                'Enable', 'off');
+                                'Enable', 'off', ...
+                                'Tag', 'off');
 handles.edit.pol(2) = uicontrol('Style', 'edit', ...
                                 'Position', pos .* [1 1 0.5 1] + [pos(3)/2 0 0 0], ...
-                                'String', num2str(setting.polarizer.set(2)), ...
+                                'String', num2str(setting.Polarizer.set(2)), ...
                                 'HorizontalAlignment', 'center', ...
                                 'Callback', @polarizerEdit, ...
-                                'Enable', 'off');
+                                'Enable', 'off', ...
+                                'Tag', 'off');
 
 %% Create boxes for polarizer setting
 pos(2) = pos(2) - setting.fig.unitH * 1.5;
@@ -388,17 +469,19 @@ handles.dropdown.pol(1) = uicontrol('Style', 'popupmenu', ...
                                     'String', {'0', '90'}, ...
                                     'Position', pos .* [1 1 0.5 1], ...
                                     'Callback', @polarizerDropdown, ...
-                                    'Enable', 'off');
+                                    'Enable', 'off', ...
+                                    'Tag', 'off');
 handles.dropdown.pol(2) = uicontrol('Style', 'popupmenu', ...
                                     'String', {'0', '90'}, ...
                                     'Position', pos .* [1 1 0.5 1] + [pos(3)/2 0 0 0], ...
                                     'Callback', @polarizerDropdown, ...
-                                    'Enable', 'off');
+                                    'Enable', 'off', ...
+                                    'Tag', 'off');
 
 %% Create pushbuttons to set the zero position of the polarizer
 pos(2) = pos(2) - setting.fig.unitH;
 handles.button.pol(1) = uicontrol('Style', 'pushbutton', ...
-                                           'String', 'Set 0', ...
+                                           'String', 'Find 0', ...
                                            'Position', pos .* [1 1 0.5 1], ...
                                            'HorizontalAlignment', 'center', ...
                                            'Callback', @polarizerButton, ...
@@ -406,7 +489,7 @@ handles.button.pol(1) = uicontrol('Style', 'pushbutton', ...
                                            'ForegroundColor', [1 1 1], ...
                                            'Tag', 'off');
 handles.button.pol(2) = uicontrol('Style', 'pushbutton', ...
-                                           'String', 'Set 0', ...
+                                           'String', 'Find 0', ...
                                            'Position', pos .* [1 1 0.5 1] + [pos(3)/2 0 0 0], ...
                                            'HorizontalAlignment', 'center', ...
                                            'Callback', @polarizerButton, ...
@@ -416,10 +499,9 @@ handles.button.pol(2) = uicontrol('Style', 'pushbutton', ...
 
 %% Create a box for Firmware Name
 pos(2) = pos(2) - setting.fig.unitH;
-handles.text.ID = uicontrol('Style', 'text', ...
-                            'String', '', ...
-                            'Position', pos);
-
+handles.text.polID = uicontrol('Style', 'text', ...
+                               'String', '', ...
+                               'Position', pos);
 end
 
 
@@ -446,14 +528,14 @@ function shutterButton(~, ~)
 end
 
 function lasShutButton(~, ~)
-    global handles
+    %global handles
 
-    % If this function is disabled, don't do anything
-    if isequal(handles.button.lasShut.Tag, 'off')
-        return
-    end
+%     % If this function is disabled, don't do anything
+%     if isequal(handles.button.lasShut.Tag, 'off')
+%         return
+%     end
     % Toggle the shutter button    
-    ardSend('r');
+    polSend([uint8('s'), 1]);
 end
 
 function lightButton(~, ~)
@@ -463,7 +545,7 @@ function lightButton(~, ~)
     if isequal(handles.button.lightON.Tag, 'off')
         return
     end
-    % Toggle the shutter button    
+    % Toggle the light button    
     ardSend('t');
 end
 
@@ -491,55 +573,100 @@ function lightPWMedit(~, ~)
     ardSend([uint8('M'), round(editVal)])
 end
 
+% Find the zero position of the polarizer
+function polarizerButton(handle, ~)
+    global handles    
+%     if strcmp(handle.Tag, 'off')
+%         return
+%     end
+
+    i = find(handle == handles.button.pol) - 1;
+    % Disable the controls
+    onOffPolHandles('off')
+    % Set the zero position
+    polSend([uint8('m'), i]);
+end
+
+    
+    
 function polarizerSlider(handle, ~)
     global handles
     global setting
-    
-    
-    slidVal = round(handle.Value);
-    if handle == handles.slider.pol(1)
-        ardSend('a');
-    else
-        ardSend('b');
-    end
-    % If this slider didn't get deactivated, it means the motor controller
-    % is active
-    if strcmp(handle.Enable, 'on')
-        % Get the stepper motor index
-        setting.polarizer.callIn = find(handle == handles.slider.pol) - 1;
-        % Get the stepper motor position
-        ardSend([uint8('x'), setting.polarizer.callIn])
-    else
+
+    % If this slider is deactivated, skip this call
+    if strcmp(handle.Enable, 'off')
         return
     end
+%     if strcmp(handle.Tag, 'off')
+%         % Fill in with the original data
+%         in = find(handle == handles.slider.pol);
+%         handle.Value = setting.Polarizer.val(in);
+%         return
+%     end
 
-    stepDiff = slidVal - double(setting.polarizer.val(setting.polarizer.callIn + 1));
-    % convert the stepDiff into a 2-byte format for the Arduino.
-    data = [uint8(bitand(abs(stepDiff), 255)), ...
-            bitor(uint8(128 * (sign(stepDiff) == -1) + ...
-                      64 * setting.polarizer.callIn), ...
-                  bitshift(abs(stepDiff), -8))];
-    ardSend([uint8('X'), data])
-    % Send the updated value to Arduino
-    %ardSend([uint8('M'), round(handles.slider.lightPWM.Value)])
+    % Disable the controls
+    onOffPolHandles('off')
+    % Get the index of the slider pressed
+    setting.Polarizer.callIn = find(handle == handles.slider.pol);
+    % Get the target value
+    slidVal = round(handle.Value);
+    fprintf('%d\t%d\n', slidVal, setting.Polarizer.val(setting.Polarizer.callIn));
+    % Calculate the differential between the desired and current positions
+    steps = slidVal - setting.Polarizer.val(setting.Polarizer.callIn);
+    % Convert the target value so it is always a forward motion
+    steps = mod(steps + 800, 800);
+    % If there is no change in steps, just quit
+    if steps == 0
+        % Enable the controls
+        onOffPolHandles('on')
+        return
+    end
+    handle.Tag = 'off';
+    % Add the motor index to the value
+    steps = steps + (2 ^ 15) * (setting.Polarizer.callIn - 1);
+    setting.Polarizer.val(setting.Polarizer.callIn) = slidVal;
+    handles.edit.pol(setting.Polarizer.callIn).String = num2str(slidVal);
+    % Hide the figure, while the motor is moving
+    % Send the command to move the motor
+    polSend([uint8('M'), bitand(steps, 255), bitshift(steps, -8)]);
 end
 
-function polarizerEdit(~, ~)
+function polarizerEdit(handle, ~)
     global handles
+    global setting
+    
+%     % If this slider is deactivated, skip this call
+%     if strcmp(handle.Tag, 'off')
+%         % Fill in with the original data
+%         in = find(handle == handles.edit.pol);
+%         handle.String =  num2str(setting.Polarizer.val(in));
+%         return
+%     end
 
+
+    % Get the index of the slider pressed
+    in = find(handle == handles.edit.pol);
     % Check whether the value is not numeric
     % Check if a negative value has been provided
     % Check if a value higher than the maximum limit has been provided
-    editVal = 2.55 * str2double(handles.edit.lightPWM.String);
+    editVal = str2double(handle.String);
     if isnan(editVal) || ...
-            editVal < handles.slider.lightPWM.Min || ...
-            editVal > handles.slider.lightPWM.Max
-            % Update the display to the original value
-            displayLightValue
+            editVal < handles.slider.pol(in).Min || ...
+            editVal > handles.slider.pol(in).Max
+        % Update the display to the original value
+        handle.String = num2str(setting.Polarizer.val(in));
         return
     end
+    
+    % Disable the controls
+    onOffPolHandles('off')
+    % Set the slider to the according value
+    handles.slider.pol(in).Value = round(editVal);
+    % Call the slider update function
+    polarizerSlider(handles.slider.pol(in), false)
+%    setting.Polarizer.callIn = find(handle == handles.slider.pol);
     % Send the updated value to Arduino
-    ardSend([uint8('M'), round(editVal)])
+%    ardSend([uint8('M'), round(editVal)])
 end
 
 
@@ -668,6 +795,21 @@ function serialDropdown(~, ~)
     save('config.mat', 'setting')
 end
 
+function serPolDropdown(~, ~)
+    global handles
+    global setting
+
+    % If there is only one serial port
+    if ischar(handles.dropdown.portPol.String)
+        setting.portPol = handles.dropdown.portPol.String;
+    else
+        setting.portPol = ...
+            handles.dropdown.portPol.String{handles.dropdown.portPol.Value};
+    end
+    % Save the settings into a mat file
+    save('config.mat', 'setting')
+end
+
 function connectButton(~, ~)
     global setting
     global handles
@@ -681,7 +823,6 @@ function connectButton(~, ~)
             % Enable the shutter button functionality
             handles.button.shutter.Tag = 'on';
             handles.button.lightON.Tag = 'on';
-            handles.button.lasShut.Tag = 'on';
         case 'Connected'
             % Close the serial port
             fclose(setting.serial);
@@ -711,12 +852,49 @@ function connectButton(~, ~)
             setting.light.pot = NaN;
             setting.light.pwm = NaN;
             displayLightValue;
+    end
+end
+
+function connectPolButton(~, ~)
+    global setting
+    global handles
+
+    
+    if strcmp(handles.button.connectPol.Tag, 'off')
+        return
+    end
+        
+    switch handles.button.connectPol.String
+        case 'Connect'
+            polConnect
+            % Change the button string
+            handles.button.connectPol.String = 'Connected';
+            handles.button.connectPol.BackgroundColor = [0 0.4 0];
+            % Enable the shutter button functionality
+            handles.button.lasShut.Tag = 'on';
+        case 'Connected'
+            % Close the serial port
+            fclose(setting.serPol);
+            % Remove the callback function
+            setting.serPol.BytesAvailableFcn = '';
+            % Change the button string
+            handles.button.connectPol.String = 'Connect';
+            handles.button.connectPol.BackgroundColor = [0.4 0 0];
+            % Change the voltage string
+            handles.text.pwrVolt.String = 'Power Supply ???';
+            handles.text.pwrVolt.BackgroundColor = [0.4 0 0];
+            handles.text.polID.String = '';
+            % Make the lamp value boxes red with ??? values
             handles.button.lasShut.String = 'Laser ???';
             handles.button.lasShut.Tag = 'off';
             handles.button.lasShut.BackgroundColor = [0.4 0 0];
             handles.button.lasShut.ForegroundColor = [1 1 1];
-            setting.polarizer.enabled = [Inf, Inf];
-            displayPolarizer
+            %setting.Polarizer.enabled = [Inf, Inf];
+            setting.Polarizer.reflectivity = [0 0];
+            setting.Polarizer.callIn = 1;
+            updateMotorIn
+            setting.Polarizer.callIn = 2;
+            updateMotorIn
     end
 end
 
@@ -727,6 +905,9 @@ function shutdown(~, ~)
     % Close a port, if there is any port.
     if isfield(setting, 'serial')
         fclose(setting.serial);
+    end
+    if isfield(setting, 'serPol')
+        fclose(setting.serPol);
     end
     delete(handles.fig);
 end
@@ -788,7 +969,80 @@ function ardConnect
     %ardSend('b');
     % ask for the position of the polarizers
     %for i = [0 1]
-    %    setting.polarizer.callIn = i;
+    %    setting.Polarizer.callIn = i;
+    %    ardSend([uint8('x'), i])
+    %end
+end
+
+function polConnect
+    global setting
+
+    % Create serial port object
+    setting.serPol = serial(setting.portPol);
+    % Set the call function to bytes. It is required that at least 2 bytes
+    % must be received
+    setting.serPol.BytesAvailableFcnMode = 'byte';
+    setting.serPol.BytesAvailableFcnCount = 2;
+    % Open the serial port
+    fopen(setting.serPol);
+    % Wait for the Arduino to wake up
+    h = msgbox('Waiting for Arduino to respond', 'FLIMmer', 'modal');
+    % Ensure the box appears
+    drawnow
+    % Wait two second to ensure the arduino is working
+    pause(2);
+	% Check if there is anything in the serial read buffer
+    if setting.serPol.BytesAvailable > 0
+        % Dump the buffer
+        fread(setting.serPol, setting.serPol.BytesAvailable);
+    end
+    % add a callback to bytes available. This is designed for the code to
+    % listen to any messages from the Arduino
+    setting.serPol.BytesAvailableFcn = @polCalling;
+    % Close the message box
+    delete(h);
+    % query the Arduino for identity
+    polSend('I');
+    % query the Arduino for identity
+    polSend('V');
+    % Check the Power Supply Voltage
+    polSend('v');
+    % Check the shutter status
+    polSend([uint8('s'), 0]);
+    % Check the reflectivity of the emission wheel
+    polSend([uint8('r'), 0]);
+    % Check the reflectivity of the excitation wheel
+    polSend([uint8('r'), 1]);
+    % If the reflectivity is high, i.e. motor is plugged in, find its
+    % position
+    for i = (find(setting.Polarizer.motorIn) - 1)
+        % Disable the controls while the motor is moving
+        onOffPolHandles('off')
+        polSend([uint8('m'), i]);
+    end
+    % Check the shutter status
+    polSend([uint8('s'), 0]);
+    % check the shutter state
+    %ardSend('S');
+    % check the NV wiper setting
+    %ardSend('E');
+    % turn off the lamp
+    %setting.light.state = 0;
+    %ardSend([uint8('w'), 0]);
+    % check the lamp power supply error
+    %ardSend('e');
+    % check the lamp voltage
+    %ardSend('l');
+    % check the lamp PWM
+    %ardSend('m');
+    % check the laser Shutter
+    %ardSend('R');
+    % check the connection status of the stepper motor controllers
+    %ardSend('a');
+    %ardSend('b');
+    % ask for the position of the polarizers
+    %for i = [0 1]
+    %    setting.Polarizer.callIn = i;
     %    ardSend([uint8('x'), i])
     %end
 end
@@ -800,6 +1054,17 @@ function ardSend(command)
     setting.waiting4data = true;
     % Send it to Arduino
     fwrite(setting.serial, cmd)
+    % Wait for the Arduino to respond
+    while setting.waiting4data; end
+end
+
+function polSend(command)
+    global setting
+
+    cmd = [uint8(numel(command) + 1), uint8(command)];
+    setting.waiting4data = true;
+    % Send it to Arduino
+    fwrite(setting.serPol, cmd)
     % Wait for the Arduino to respond
     while setting.waiting4data; end
 end
@@ -912,18 +1177,112 @@ function ardCalling(~, ~)
             displayLightValue;
         %case {'a', 'b'} % 97, 98
         %    % polarizer enable
-        %    setting.polarizer.enabled(answer(1) - 96) = answer(2);
+        %    setting.Polarizer.enabled(answer(1) - 96) = answer(2);
         %    displayPolarizer;
         %case 'x' % 120
         %    % Store the first byte of the polarizer position
-        %    setting.polarizer.byte(setting.polarizer.callIn + 1, 1) = uint16(answer(2));
+        %    setting.Polarizer.byte(setting.Polarizer.callIn + 1, 1) = uint16(answer(2));
         %case 'X' % 88
         %    % Store the second byte of the polarizer position
-        %    setting.polarizer.byte(setting.polarizer.callIn + 1, 2) = uint16(answer(2));
+        %    setting.Polarizer.byte(setting.Polarizer.callIn + 1, 2) = uint16(answer(2));
         %    % Store the polarizer position
-        %    setting.polarizer.val(setting.polarizer.callIn + 1) = ...
-        %        bitshift(setting.polarizer.byte(setting.polarizer.callIn + 1, 2), 8) + ...
-        %        setting.polarizer.byte(setting.polarizer.callIn + 1, 1);
+        %    setting.Polarizer.val(setting.Polarizer.callIn + 1) = ...
+        %        bitshift(setting.Polarizer.byte(setting.Polarizer.callIn + 1, 2), 8) + ...
+        %        setting.Polarizer.byte(setting.Polarizer.callIn + 1, 1);
+        otherwise
+            disp('Polarizer says:')
+            disp(answer)
+    end
+    % Check if there is mo data in the buffer
+    if ~setting.serial.BytesAvailable
+        % Mark that data has been received
+        setting.waiting4data = false;
+    end
+end
+
+function polCalling(~, ~)
+    global setting
+    global handles
+
+    % Check if there is no data available, just exit
+    if setting.serPol.BytesAvailable == 0
+        return
+    end
+    % Read the length of the response
+    responseLength = fread(setting.serPol, 1);
+    % Wait for the Arduino to send the full string
+    while setting.serPol.BytesAvailable < responseLength; end
+    % Read the string
+    % answer = fread(setting.serial, setting.serial.BytesAvailable)';
+    answer = fread(setting.serPol, responseLength)';
+    % Decipher the answer
+    switch char(answer(1))
+        case 'I' % 73
+            setting.Polarizer.ID = char(answer(2 : end));
+        case 'V' % 86
+            setting.Polarizer.version = char(answer(2 : end));
+            handles.text.polID.String = sprintf('%s v%s', ...
+                                                setting.Polarizer.ID, ...
+                                                setting.Polarizer.version);
+        case 'v' % 72 voltage of the power supply
+            setting.Polarizer.pwrVolt = answer(2) + bitshift(answer(3), 8);
+            % Decide whether the Voltage is OK, i.e. more than 9 Volts
+            setting.Polarizer.pwrOK = setting.Polarizer.pwrVolt > 622;
+            % Convert the binary value to actual Voltage
+            setting.Polarizer.pwrVolt = (setting.Polarizer.pwrVolt / 1023) * 5 * (24 + 47) / 24;
+            if setting.Polarizer.pwrOK
+                handles.text.pwrVolt.String = sprintf('Power Supply: %3.01f V', setting.Polarizer.pwrVolt);
+                handles.text.pwrVolt.BackgroundColor = [0 0.4 0];
+            else
+                handles.text.pwrVolt.String = 'Power Supply: ???';
+                handles.text.pwrVolt.BackgroundColor = [0.4 0 0];
+            end
+        case 'r' % 114 reflectivity of the wheel
+            % Read the index of the wheel
+            setting.Polarizer.callIn = bitshift(answer(3), -7) + 1;
+            % Read the reflectivity of the polarizer mirror
+            setting.Polarizer.reflectivity(setting.Polarizer.callIn) = ...
+                answer(2) + bitshift(bitand(answer(3), 127), 8);
+            updateMotorIn
+        case 's' % 115
+            setting.Polarizer.shutter = answer(2);
+            switch setting.Polarizer.shutter
+                case 0
+                    setting.Arduino.lasShut = 'CLOSED';
+                    handles.button.lasShut.BackgroundColor = [0 0 0];
+                    handles.button.lasShut.ForegroundColor = [1 1 1];
+                    handles.button.lasShut.String = 'Laser CLOSED';
+                case 1
+                    setting.Arduino.lasShut = 'OPEN';
+                    handles.button.lasShut.BackgroundColor = [1 1 1];
+                    handles.button.lasShut.ForegroundColor = [0 0 0];
+                    handles.button.lasShut.String = 'Laser OPEN';
+            end
+        case 'm' % 109
+            % Read the index of the wheel
+            setting.Polarizer.callIn = bitshift(answer(3), -7) + 1;
+            % Read the position of the stepper motor
+            setting.Polarizer.val(setting.Polarizer.callIn) = ...
+                answer(2) + bitshift(bitand(answer(3), 127), 8);
+            onOffPolHandles('on')
+            updateMotorIn;
+        case 'M' % 77
+            % Read the index of the wheel
+            setting.Polarizer.callIn = bitshift(answer(3), -7) + 1;
+            % Read the reflectivity of the polarizer mirror
+            value = answer(2) + bitshift(bitand(answer(3), 127), 8);
+            % Check if the return value matches the expected value
+            if value ~= setting.Polarizer.val(setting.Polarizer.callIn)
+                errordlg(sprintf(['Polarizer returns position: %d\n', ...
+                                  'On motor: %d\n', ...
+                                  'Expected position: %d'], ...
+                                 value, ...
+                                 setting.Polarizer.callIn, ...
+                                 setting.Polarizer.val(setting.Polarizer.callIn)), ...
+                                 'FLIMmer');
+            end
+            onOffPolHandles('on')
+
         otherwise
             disp('Arduino says:')
             disp(answer)
@@ -1060,31 +1419,52 @@ function displayLightValue
     end
 end
 
-function displayPolarizer
+function onOffPolHandles(state)
+    % Function to enable/disable the polarizer controls
+    global handles
+
+    handles.slider.pol(1).Visible = state;
+    handles.slider.pol(2).Visible = state;
+    handles.edit.pol(1).Visible = state;
+    handles.edit.pol(2).Visible = state;
+    handles.button.pol(1).Visible = state;
+    handles.button.pol(2).Visible = state;
+    handles.dropdown.pol(1).Visible = state;
+    handles.dropdown.pol(2).Visible = state;
+    handles.button.lasShut.Visible = state;
+    handles.button.connectPol.Visible = state;
+    drawnow
+end
+
+
+function updateMotorIn
     % Function to enable/disable the polarizer controls
     global setting
     global handles
-    
-    i = setting.polarizer.callIn + 1;
-    if setting.polarizer.enabled(i) == 0
-        % The polarizer control is enabled
+
+    i = setting.Polarizer.callIn;
+    % Check if the motor is plugged in, i.e. the reflectifity is over 100
+    setting.Polarizer.motorIn(i) = setting.Polarizer.reflectivity(i) > 100;
+    if setting.Polarizer.motorIn(i)
+        % The motor is plugged in
+        handles.button.pol(i).BackgroundColor = [0 0.4 0];
         handles.slider.pol(i).Enable = 'on';
-        handles.slider.pol(i).Value = double(setting.polarizer.val(i));
-        handles.edit.pol(i).String = num2str(setting.polarizer.val(i));
+        handles.slider.pol(i).Value = double(setting.Polarizer.val(i));
+        handles.edit.pol(i).String = num2str(setting.Polarizer.val(i));
         handles.edit.pol(i).Enable = 'on';
         handles.text.pol(i).BackgroundColor = [1 1 0];
         handles.text.pol(i).ForegroundColor = [0 0 0];
         handles.dropdown.pol(i).Enable = 'on';
-        handles.button.pol(i).Tag = 'on';
-        handles.button.pol(i).BackgroundColor = [0 0.4 0];
+        handles.slider.pol(i).Tag = 'on';
     else
         % The polarizer control is disabled
         handles.slider.pol(i).Enable = 'off';
+        handles.slider.pol(i).Tag = 'off';
         handles.edit.pol(i).Enable = 'off';
         handles.text.pol(i).BackgroundColor = [0.4 0 0];
         handles.text.pol(i).ForegroundColor = [1 1 1];
         handles.dropdown.pol(i).Enable = 'off';
         handles.button.pol(i).Tag = 'off';
-        handles.button.pol(i).BackgroundColor = [0.4 0 0];            
+        handles.button.pol(i).BackgroundColor = [0.4 0 0];
     end
 end
