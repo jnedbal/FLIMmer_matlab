@@ -1,4 +1,4 @@
-function FLIMmer
+function funcHandles = FLIMmer
 close all
 global handles      % Struct with various handles
 global setting      % Struct holding settings
@@ -13,6 +13,7 @@ end
 %% Check the settings exist
 if ~isfield(setting, 'Arduino')
     setting.Arduino.pot = 0;
+    setting.Arduino.NVwiper = 0;
 end
 if ~isfield(setting, 'light')
     setting.light.pot = 0;
@@ -51,6 +52,22 @@ if exist('lightPwrSupply.mat', 'file') == 2
     setting.calibration.Lpwr = Lpwr;
 else
     setting.calibration.Lpwr = NaN;
+end
+
+%% Check if polarizer alignment file exists
+if exist('polSet.mat', 'file') == 2
+    load('polSet.mat', 'polSet');
+    setting.polarizer.exc = polSet.exc;
+    setting.polarizer.em = polSet.em;
+else
+    % Excitation polarizer setting
+    setting.polarizer.exc.parallel = [337, 737];
+    setting.polarizer.exc.perpendicular = [137, 537];
+    setting.polarizer.exc.label = {char(8741), char(10178), '?'};
+    % Emission polarizer setting
+    setting.polarizer.em.parallel = [346, 746];
+    setting.polarizer.em.perpendicular = [146, 546];
+    setting.polarizer.em.label = {char(8741), char(10178), '?'};
 end
 
 %% Create a figure
@@ -308,13 +325,13 @@ handles.slider.lightV = uicontrol('Style', 'slider', ...
                                   'SliderStep', [1, 16] / 127, ...
                                   'Callback', @lightVslider, ...
                                   'Enable', 'off', ...
-                                  'Value', setting.light.pot);
+                                  'Value', 127 - setting.light.pot);
 
 %% Create a text box for light supply voltage
 pos(2) = pos(2) - setting.fig.unitH;
 handles.edit.lightV = uicontrol('Style', 'edit', ...
                                 'Position', pos, ...
-                                'String', num2str(setting.light.pot), ...
+                                'String', num2str(127 - setting.light.pot), ...
                                 'HorizontalAlignment', 'center', ...
                                 'Callback', @lightVedit, ...
                                 'Enable', 'off');
@@ -466,13 +483,15 @@ set(handles.text.pol, 'FontSize', 1.5 * handles.text.pol(1).FontSize);
 %% Create combo boxes for pre-set polarizer settings
 pos(2) = pos(2) - setting.fig.unitH;
 handles.dropdown.pol(1) = uicontrol('Style', 'popupmenu', ...
-                                    'String', {'0', '90'}, ...
+                                    'String', setting.polarizer.em.label, ...
+                                    'Value', numel(setting.polarizer.em.label), ...
                                     'Position', pos .* [1 1 0.5 1], ...
                                     'Callback', @polarizerDropdown, ...
                                     'Enable', 'off', ...
                                     'Tag', 'off');
 handles.dropdown.pol(2) = uicontrol('Style', 'popupmenu', ...
-                                    'String', {'0', '90'}, ...
+                                    'String', setting.polarizer.exc.label, ...
+                                    'Value', numel(setting.polarizer.exc.label), ...
                                     'Position', pos .* [1 1 0.5 1] + [pos(3)/2 0 0 0], ...
                                     'Callback', @polarizerDropdown, ...
                                     'Enable', 'off', ...
@@ -534,7 +553,7 @@ function lasShutButton(~, ~)
 %     if isequal(handles.button.lasShut.Tag, 'off')
 %         return
 %     end
-    % Toggle the shutter button    
+    % Toggle the shutter button
     polSend([uint8('s'), 1]);
 end
 
@@ -571,64 +590,6 @@ function lightPWMedit(~, ~)
     end
     % Send the updated value to Arduino
     ardSend([uint8('M'), round(editVal)])
-end
-
-% Find the zero position of the polarizer
-function polarizerButton(handle, ~)
-    global handles    
-%     if strcmp(handle.Tag, 'off')
-%         return
-%     end
-
-    i = find(handle == handles.button.pol) - 1;
-    % Disable the controls
-    onOffPolHandles('off')
-    % Set the zero position
-    polSend([uint8('m'), i]);
-end
-
-    
-    
-function polarizerSlider(handle, ~)
-    global handles
-    global setting
-
-    % If this slider is deactivated, skip this call
-    if strcmp(handle.Enable, 'off')
-        return
-    end
-%     if strcmp(handle.Tag, 'off')
-%         % Fill in with the original data
-%         in = find(handle == handles.slider.pol);
-%         handle.Value = setting.Polarizer.val(in);
-%         return
-%     end
-
-    % Disable the controls
-    onOffPolHandles('off')
-    % Get the index of the slider pressed
-    setting.Polarizer.callIn = find(handle == handles.slider.pol);
-    % Get the target value
-    slidVal = round(handle.Value);
-    fprintf('%d\t%d\n', slidVal, setting.Polarizer.val(setting.Polarizer.callIn));
-    % Calculate the differential between the desired and current positions
-    steps = slidVal - setting.Polarizer.val(setting.Polarizer.callIn);
-    % Convert the target value so it is always a forward motion
-    steps = mod(steps + 800, 800);
-    % If there is no change in steps, just quit
-    if steps == 0
-        % Enable the controls
-        onOffPolHandles('on')
-        return
-    end
-    handle.Tag = 'off';
-    % Add the motor index to the value
-    steps = steps + (2 ^ 15) * (setting.Polarizer.callIn - 1);
-    setting.Polarizer.val(setting.Polarizer.callIn) = slidVal;
-    handles.edit.pol(setting.Polarizer.callIn).String = num2str(slidVal);
-    % Hide the figure, while the motor is moving
-    % Send the command to move the motor
-    polSend([uint8('M'), bitand(steps, 255), bitshift(steps, -8)]);
 end
 
 function polarizerEdit(handle, ~)
@@ -1058,17 +1019,6 @@ function ardSend(command)
     while setting.waiting4data; end
 end
 
-function polSend(command)
-    global setting
-
-    cmd = [uint8(numel(command) + 1), uint8(command)];
-    setting.waiting4data = true;
-    % Send it to Arduino
-    fwrite(setting.serPol, cmd)
-    % Wait for the Arduino to respond
-    while setting.waiting4data; end
-end
-
 function ardCalling(~, ~)
     global setting
     global handles
@@ -1169,7 +1119,7 @@ function ardCalling(~, ~)
             displayLightValue;
         case {'l', 'L'} % 108, 76
             % Store the lamp voltage error
-            setting.light.pot = 127 - answer(2);
+            setting.light.pot = answer(2);
             displayLightValue;
         case {'m', 'M'} % 109, 77
             % Store the lamp voltage error
@@ -1405,12 +1355,12 @@ function displayLightValue
     else
         handles.text.lightVset.BackgroundColor = [1 1 0];
         handles.text.lightVset.ForegroundColor = [0 0 0];
-        Vlight = polyval(setting.calibration.Lpwr, 127 - setting.light.pot);
+        Vlight = polyval(setting.calibration.Lpwr, setting.light.pot);
         handles.text.lightVset.String = sprintf('%.1f V', Vlight);
         handles.slider.lightV.Enable = 'on';
-        handles.slider.lightV.Value = setting.light.pot;
+        handles.slider.lightV.Value = 127 - setting.light.pot;
         handles.edit.lightV.Enable = 'on';
-        handles.edit.lightV.String = num2str(setting.light.pot);
+        handles.edit.lightV.String = num2str(127 - setting.light.pot);
     end
 
     % Save the setting for next load into a mat file
@@ -1418,24 +1368,6 @@ function displayLightValue
         save('config.mat', 'setting')
     end
 end
-
-function onOffPolHandles(state)
-    % Function to enable/disable the polarizer controls
-    global handles
-
-    handles.slider.pol(1).Visible = state;
-    handles.slider.pol(2).Visible = state;
-    handles.edit.pol(1).Visible = state;
-    handles.edit.pol(2).Visible = state;
-    handles.button.pol(1).Visible = state;
-    handles.button.pol(2).Visible = state;
-    handles.dropdown.pol(1).Visible = state;
-    handles.dropdown.pol(2).Visible = state;
-    handles.button.lasShut.Visible = state;
-    handles.button.connectPol.Visible = state;
-    drawnow
-end
-
 
 function updateMotorIn
     % Function to enable/disable the polarizer controls
